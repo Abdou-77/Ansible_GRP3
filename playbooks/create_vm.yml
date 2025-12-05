@@ -1,0 +1,68 @@
+---
+- name: Create VM with its own new IP
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  collections:
+    - azure.azcollection
+
+  vars:
+    vm_name: ATLAS_3
+    resource_group: ResourceGroup_3
+    location: francecentral
+    vnet_name: VNet_3
+    subnet_name: default
+    public_ip_name: NIC_3-pip
+    nic_name: NIC_3
+
+  tasks:
+
+    - name: Ensure virtual network exists
+      azure_rm_virtualnetwork:
+        resource_group: "{{ resource_group }}"
+        name: "{{ vnet_name }}"
+        address_prefixes:
+          - 10.0.0.0/16
+
+    - name: Ensure subnet exists
+      azure_rm_subnet:
+        resource_group: "{{ resource_group }}"
+        virtual_network: "{{ vnet_name }}"
+        name: "{{ subnet_name }}"
+        address_prefix: 10.0.1.0/24
+
+    - name: Create public IP for the VM
+      azure_rm_publicipaddress:
+        resource_group: "{{ resource_group }}"
+        name: "{{ public_ip_name }}"
+        location: "{{ location }}"
+        allocation_method: Static
+        sku: Standard
+
+    - name: Create network interface with new public IP
+      azure_rm_networkinterface:
+        resource_group: "{{ resource_group }}"
+        name: "{{ nic_name }}"
+        location: "{{ location }}"
+        virtual_network: "{{ vnet_name }}"
+        subnet: "{{ subnet_name }}"
+        ip_configurations:
+          - name: ipconfig1
+            public_ip_address_name: "{{ public_ip_name }}"
+
+    - name: Create virtual machine
+      azure_rm_virtualmachine:
+        resource_group: "{{ resource_group }}"
+        name: "{{ vm_name }}"
+        location: "{{ location }}"
+        vm_size: Standard_B2s
+        admin_username: azureuser
+        admin_password: "Oujda2003235@"
+        network_interfaces: "{{ nic_name }}"
+        image:
+          publisher: Canonical
+          offer: 0001-com-ubuntu-server-noble
+          sku: "24_04-lts"
+          version: latest
+        state: present
